@@ -1,6 +1,245 @@
-import {useEffect,useMemo,useState} from 'react';
-import {AlertTriangle,Check,ChevronDown,Download,FileCode2,Info,Layers3,Plus,Search,ShieldCheck,Sparkles,Upload, X} from 'lucide-react';
-type Dep={id:number;name:string;version:string;license:string;source:string;status:'ok'|'warn'|'risk';note:string};
-const initial:Dep[]=[{id:1,name:'react',version:'18.3.1',license:'MIT',source:'npm',status:'ok',note:'宽松许可，可商用'}, {id:2,name:'lodash',version:'4.17.21',license:'MIT',source:'npm',status:'ok',note:'宽松许可，可商用'}, {id:3,name:'chart.js',version:'4.4.4',license:'MIT',source:'npm',status:'ok',note:'宽松许可，可商用'}, {id:4,name:'highlight.js',version:'11.10.0',license:'BSD-3-Clause',source:'npm',status:'warn',note:'再发布需保留版权声明'}, {id:5,name:'legacy-parser',version:'2.1.0',license:'GPL-3.0',source:'手动',status:'risk',note:'可能与闭源分发冲突'}];
-const colors:Record<string,string>={MIT:'#35b995','BSD-3-Clause':'#6d9ee8','GPL-3.0':'#ec8c75','Apache-2.0':'#b18ee4'};
-export default function App(){const [deps,setDeps]=useState<Dep[]>(()=>{try{return JSON.parse(localStorage.getItem('license-lens')||'')||initial}catch{return initial}});const [query,setQuery]=useState('');const [filter,setFilter]=useState('全部');const [selected,setSelected]=useState(1);const [showAdd,setShowAdd]=useState(false);const [name,setName]=useState('');const [license,setLicense]=useState('MIT');const current=deps.find(d=>d.id===selected);useEffect(()=>localStorage.setItem('license-lens',JSON.stringify(deps)),[deps]);const filtered=useMemo(()=>deps.filter(d=>(filter==='全部'||d.status===filter)&&`${d.name}${d.license}`.toLowerCase().includes(query.toLowerCase())),[deps,filter,query]);const add=()=>{if(!name.trim())return;const id=Date.now();setDeps(ds=>[...ds,{id,name:name.trim(),version:'1.0.0',license,source:'手动',status:license.startsWith('GPL')?'risk':license==='MIT'?'ok':'warn',note:license==='MIT'?'宽松许可，可商用':'请核对分发义务'}]);setSelected(id);setName('');setShowAdd(false)};const exportMd=()=>{const text=`# License Lens\n\n| 依赖 | 版本 | 许可证 | 状态 |\n|---|---|---|---|\n${deps.map(d=>`| ${d.name} | ${d.version} | ${d.license} | ${d.status} |`).join('\n')}`;const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:'text/markdown'}));a.download='license-report.md';a.click();URL.revokeObjectURL(a.href)};return <div className="shell"><aside><div className="brand"><div className="brand-icon"><ShieldCheck size={18}/></div><div><b>License Lens</b><small>dependency clarity</small></div></div><div className="nav-title">WORKSPACE</div><button className="nav active"><Layers3 size={16}/>依赖总览</button><button className="nav"><FileCode2 size={16}/>许可证清单 <span>{deps.length}</span></button><button className="nav"><AlertTriangle size={16}/>待处理风险 <span className="red">{deps.filter(d=>d.status==='risk').length}</span></button><div className="aside-bottom"><div className="mini-card"><Sparkles size={16}/><div><b>扫描已更新</b><small>刚刚完成 5 个依赖的分析</small></div></div><div className="user"><div className="avatar">ZL</div><span>Zen Li</span><ChevronDown size={14}/></div></div></aside><main><header><div><div className="crumb">WORKSPACE / <b>PROJECT SCAN</b></div><h1>许可证兼容性分析</h1><p>检查依赖许可，放心发布你的项目。</p></div><div className="head-actions"><button className="outline" onClick={exportMd}><Download size={15}/>导出报告</button><button className="primary" onClick={()=>setShowAdd(true)}><Plus size={16}/>添加依赖</button></div></header><section className="hero"><div><span className="tag">PROJECT · AURORA-WEB</span><h2>发布前，再确认一次。</h2><p>我们扫描了 <b>{deps.length} 个依赖</b>，发现 <b className="warning">{deps.filter(d=>d.status!=='ok').length} 个项目</b>需要你的关注。</p></div><div className="scan-score"><div className="score-ring"><strong>{Math.round(deps.filter(d=>d.status==='ok').length/deps.length*100)}<small>%</small></strong></div><div><span>兼容评分</span><b>良好</b><small>上次扫描 2 分钟前</small></div></div></section><section className="summary"><div><span>全部依赖</span><b>{deps.length}</b><small>+2 本次新增</small></div><div><span>安全许可</span><b className="teal">{deps.filter(d=>d.status==='ok').length}</b><small>可直接分发</small></div><div><span>需要复核</span><b className="orange">{deps.filter(d=>d.status==='warn').length}</b><small>保留声明即可</small></div><div><span>高风险</span><b className="red">{deps.filter(d=>d.status==='risk').length}</b><small>建议替换或隔离</small></div></section><section className="workspace"><div className="table-pane"><div className="pane-head"><div><h2>依赖清单</h2><p>逐项查看许可证义务</p></div><div className="tools"><div className="search"><Search size={15}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="搜索依赖"/></div><select value={filter} onChange={e=>setFilter(e.target.value)}><option value="全部">全部状态</option><option value="ok">安全</option><option value="warn">复核</option><option value="risk">高风险</option></select></div></div><div className="table"><div className="tr th"><span>依赖名称</span><span>版本</span><span>许可证</span><span>状态</span></div>{filtered.map(d=><button className={d.id===selected?'tr selected':'tr'} key={d.id} onClick={()=>setSelected(d.id)}><span className="dep-name"><span className="pkg-dot"/> {d.name}</span><span className="muted">{d.version}</span><span><i className="license" style={{color:colors[d.license]||'#888',background:(colors[d.license]||'#888')+'18'}}>{d.license}</i></span><span className={'status '+d.status}>{d.status==='ok'?<Check size={13}/>:<AlertTriangle size={13}/>} {d.status==='ok'?'安全':d.status==='warn'?'复核':'高风险'}</span></button>)}</div></div>{current&&<div className="detail"><div className="detail-head"><div className="detail-icon" style={{background:(colors[current.license]||'#888')+'1c',color:colors[current.license]}}><FileCode2 size={20}/></div><div><span>SELECTED DEPENDENCY</span><h2>{current.name}</h2></div><button className="close" onClick={()=>setSelected(0)}><X size={16}/></button></div><div className="detail-grid"><div><label>版本</label><b>{current.version}</b></div><div><label>来源</label><b>{current.source}</b></div><div><label>许可证</label><b>{current.license}</b></div></div><div className={'finding '+current.status}><div className="finding-icon">{current.status==='ok'?<Check size={16}/>:<AlertTriangle size={16}/>}</div><div><b>{current.status==='ok'?'可以放心使用':current.status==='warn'?'需要保留声明':'存在分发限制'}</b><p>{current.note}。扫描结果基于 package 元数据，请在发布前查看完整许可证文本。</p></div></div><div className="full-license"><div><Info size={15}/><span>许可证摘要</span></div><p>{current.license} 允许在满足其条款的前提下使用和分发代码。详细义务请参考项目仓库中的 LICENSE 文件。</p><button>查看原文 <ChevronDown size={14}/></button></div></div>}</section></main>{showAdd&&<div className="backdrop" onClick={()=>setShowAdd(false)}><div className="modal" onClick={e=>e.stopPropagation()}><div className="modal-head"><h2>添加依赖</h2><button onClick={()=>setShowAdd(false)}>×</button></div><label>依赖名称<input autoFocus value={name} onChange={e=>setName(e.target.value)} placeholder="例如 date-fns"/></label><label>许可证<select value={license} onChange={e=>setLicense(e.target.value)}><option>MIT</option><option>BSD-3-Clause</option><option>Apache-2.0</option><option>GPL-3.0</option></select></label><button className="primary full" onClick={add}>加入扫描</button></div></div>}</div>}
+import { useMemo, useState } from 'react';
+import {
+  AlertTriangle, ChevronDown, DatabaseBackup, Download, FileCode2, FolderInput,
+  GitCompare, Layers3, Power, RefreshCw, Scale, Send, ShieldCheck, Sparkles, Upload, X,
+} from 'lucide-react';
+import type { Change, Toast } from './review/schema';
+import { effective, short } from './review/schema';
+import { AUDITORS, store, useStore } from './review/store';
+import { grantChange, lockfileChanges, LOCKFILE, LOCK_REF } from './review/demo';
+import { changeText, pushToast, ToastStack } from './review/components';
+import { BaselineView, DepsView, DisputesView, EvidenceView, ReceiptsView, RecoveryBanner, type UI } from './review/views';
+
+const NAV = [
+  { id: 'deps', label: '依赖与裁决', icon: Layers3 },
+  { id: 'evidence', label: '许可证证据', icon: FileCode2 },
+  { id: 'baseline', label: '策略基线', icon: Scale },
+  { id: 'receipts', label: '批次回执', icon: DatabaseBackup },
+  { id: 'disputes', label: '争议清单', icon: GitCompare },
+];
+
+export default function App() {
+  const doc = useStore();
+  const [view, setView] = useState('deps');
+  const [actor, setActor] = useState(AUDITORS[0]);
+  const [selected, setSelected] = useState(doc.components[0]?.id ?? '');
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const [roundId, setRoundId] = useState(() => `round_${Date.now().toString(36)}`);
+  const [drafts, setDrafts] = useState<Change[]>(() => store.loadDraft(AUDITORS[0]));
+  const [faultOn, setFaultOn] = useState(store.faultEnabled);
+
+  const push = (text: string, tone: Toast['tone'] = 'info') => {
+    const id = Math.random().toString(36).slice(2);
+    setToasts((ts) => [...ts, { id, text, tone }]);
+    setTimeout(() => setToasts((ts) => ts.filter((t) => t.id !== id)), 5200);
+  };
+  const dismissToast = (id: string) => setToasts((ts) => ts.filter((t) => t.id !== id));
+  const reloadDrafts = () => setDrafts(store.loadDraft(actor));
+
+  const switchActor = (a: string) => { setActor(a); setDrafts(store.loadDraft(a)); };
+  const renewRound = () => { setRoundId(`round_${Date.now().toString(36)}`); push('已开启新的审查轮次', 'info'); };
+
+  const openDisputes = doc.disputes.filter((d) => d.status === 'open').length;
+  const staleCount = doc.components.filter((c) => effective(doc, c, doc.disputes.filter((d) => d.status === 'open')).stale).length;
+  const riskCount = doc.components.filter((c) => {
+    const e = effective(doc, c, doc.disputes.filter((d) => d.status === 'open'));
+    return e.decision === 'risk';
+  }).length;
+  const live = store.interruptedBatch();
+
+  const ui: UI = { doc, actor, setActor: switchActor, push, go: setView, selected, setSelected, drafts, reloadDrafts, roundId, renewRound };
+
+  // ---- 场景 1：甲导入锁文件（故障开关开启时演示扫描中断 + 半截依赖）----
+  const importLock = () => {
+    const r = store.saveBatch('import', `锁文件导入 · ${LOCKFILE.length} 个依赖（${LOCK_REF}）`, lockfileChanges(), actor, {
+      roundId,
+      // 故障开关打开时：前 5 次写入成功、第 6 次失败 → 半截依赖；之后持续失败直到排除故障
+      faultAfter: faultOn ? 5 : -1,
+    });
+    pushToast(push, r, '锁文件导入完成：指纹变化的组件，其旧裁决已等待重新确认');
+  };
+
+  // ---- 场景 2：乙在另一个标签补商业授权（独立批次落盘，不碰甲的暂存）----
+  const yiAddsGrant = () => {
+    const pdf = doc.components.find((c) => c.name === 'pdf-kit-pro');
+    if (!pdf) { push('请先导入锁文件，再让乙补商业授权', 'warn'); return; }
+    const r = store.saveBatch('grant', '乙：PDFKit Pro 企业授权（另一标签）', [grantChange({
+      componentId: pdf.id, title: 'PDFKit Pro 企业授权', vendor: 'Acme PDF Inc.',
+      key: 'COMM-7F3A92C1', ref: 'MSA-2026-114', days: 365,
+    })], AUDITORS[1]);
+    pushToast(push, r, '乙的商业授权已在另一标签落盘，覆盖对应组件（不影响甲的暂存）');
+  };
+
+  // ---- 场景 3：两标签同时保存同一批次 ----
+  const concurrentSave = () => {
+    const pdf = doc.components.find((c) => c.name === 'pdf-kit-pro');
+    if (!pdf) { push('请先导入锁文件', 'warn'); return; }
+    const grant = grantChange({
+      componentId: pdf.id, title: 'PDFKit Pro 企业授权', vendor: 'Acme PDF Inc.',
+      key: 'COMM-7F3A92C1', ref: 'MSA-2026-114', days: 365,
+    });
+    // 对端标签（乙）先落盘同一审查轮次
+    store.foreignCommit('grant', '乙：商业授权批次（标签B 先到）', [grant], AUDITORS[1], roundId);
+    // 本标签（甲）随后保存同一轮次：后到者保留材料并进入争议清单
+    const r = store.saveBatch('grant', '甲：商业授权批次（标签A 后到）', [grant], AUDITORS[0], { roundId });
+    pushToast(push, r, '保存成功');
+    setView('disputes');
+  };
+
+  // ---- 本标签暂存：提交 / 清空 ----
+  const submitDrafts = () => {
+    const changes = store.loadDraft(actor);
+    if (!changes.length) { push('暂存为空：乙补授权、手动补证等会先进入这里', 'warn'); return; }
+    const r = store.saveBatch('review', `${actor} 的审查批次（${changes.length} 项材料）`, changes, actor, { roundId });
+    pushToast(push, r, '批次已提交，回执已与上一批串联');
+    if (r.ok) store.clearDraft(actor);
+    reloadDrafts();
+  };
+
+  const exportReport = () => {
+    const openD = doc.disputes.filter((d) => d.status === 'open');
+    const lines = [
+      '# License Lens 审查报告',
+      `基线：${doc.baselines.find((b) => b.id === doc.baselineId)?.version} · 修订 r${doc.rev} · 链头 …${short(doc.headHash)}`,
+      '',
+      '| 依赖 | 版本 | 声明许可 | 指纹 | 有效结论 | 待确认 | 覆盖 |',
+      '|---|---|---|---|---|---|---|',
+      ...doc.components.map((c) => {
+        const e = effective(doc, c, openD);
+        const g = doc.grants.find((x) => x.componentId === c.id);
+        const x = doc.exemptions.find((z) => z.componentId === c.id);
+        return `| ${c.name} | ${c.version} | ${c.declaredLicense} | …${short(c.fingerprint)} | ${e.decision} | ${e.stale ? '是' : ''} | ${g ? '授权' : x ? '豁免' : ''} |`;
+      }),
+    ];
+    const blob = new Blob([lines.join('\n')], { type: 'text/markdown' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `license-review-r${doc.rev}.md`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+
+  const counts = {
+    total: doc.components.length,
+    ok: doc.components.filter((c) => ['ok', 'cleared', 'exempt'].includes(effective(doc, c, doc.disputes.filter((d) => d.status === 'open')).decision)).length,
+    warn: doc.components.filter((c) => effective(doc, c, doc.disputes.filter((d) => d.status === 'open')).decision === 'warn').length,
+    risk: riskCount,
+  };
+
+  return (
+    <div className="shell">
+      <aside>
+        <div className="brand">
+          <div className="brand-icon"><ShieldCheck size={18} /></div>
+          <div><b>License Lens</b><small>recoverable review chain</small></div>
+        </div>
+        <div className="nav-title">REVIEW CHAIN</div>
+        {NAV.map((n) => (
+          <button key={n.id} className={`nav ${view === n.id ? 'active' : ''}`} onClick={() => setView(n.id)}>
+            <n.icon size={16} />{n.label}
+            {n.id === 'disputes' && openDisputes > 0 && <span className="red">{openDisputes}</span>}
+            {n.id === 'deps' && staleCount > 0 && <span className="amber">{staleCount}</span>}
+          </button>
+        ))}
+        <div className="aside-bottom">
+          <div className="mini-card">
+            <GitCompare size={16} />
+            <div>
+              <b>双标签协作</b>
+              <small>同轮次并发保存 → 后到者进争议清单，材料不丢</small>
+            </div>
+          </div>
+          <div className="user">
+            <div className={`avatar ${actor === AUDITORS[0] ? 'a' : 'b'}`}>{actor === AUDITORS[0] ? '甲' : '乙'}</div>
+            <select value={actor} onChange={(e) => switchActor(e.target.value)} className="actor-select">
+              {AUDITORS.map((a) => <option key={a} value={a}>{a}</option>)}
+            </select>
+          </div>
+        </div>
+      </aside>
+
+      <main>
+        <header>
+          <div>
+            <div className="crumb">WORKSPACE / <b>AURORA-WEB · M&amp;A DUE DILIGENCE</b></div>
+            <h1>可恢复许可证审查链</h1>
+            <p>依赖指纹 · 许可证证据 · 策略基线 · 批次回执，逐项落盘、可恢复、可仲裁。</p>
+          </div>
+          <div className="head-actions">
+            <button className="outline" onClick={exportReport}><Download size={15} />导出报告</button>
+            <button className="outline" onClick={() => { store.resetAll(); setDrafts([]); setView('deps'); push('已重置为初始快照', 'info'); }}>
+              <RefreshCw size={14} />重置
+            </button>
+          </div>
+        </header>
+
+        <RecoveryBanner ui={ui} />
+
+        {/* 场景工具条 */}
+        <div className="scenario-bar">
+          <span className="sc-label"><Sparkles size={13} />演练</span>
+          <button className="chip-btn" onClick={importLock}><FolderInput size={14} />甲：导入锁文件{faultOn ? '（故障中→中断）' : ''}</button>
+          <button className="chip-btn" onClick={yiAddsGrant}><Upload size={14} />乙：另一标签补商业授权</button>
+          <button className="chip-btn" onClick={concurrentSave}><GitCompare size={14} />两标签同时保存同一批次</button>
+          <button className={`chip-btn toggle ${faultOn ? 'on' : ''}`} onClick={() => { const v = !faultOn; store.setFault(v); setFaultOn(v); push(v ? '落盘故障已注入：下次导入将在半截中断' : '落盘故障已解除，可从完整批次继续', v ? 'warn' : 'ok'); }}>
+            <Power size={13} />{faultOn ? '磁盘故障中（点击恢复）' : '模拟落盘失败'}
+          </button>
+          <button className="chip-btn" onClick={renewRound}><RefreshCw size={13} />新审查轮次</button>
+          <button className="chip-btn" onClick={() => store.installLegacy()}><DatabaseBackup size={13} />模拟旧版数据（刷新即升级）</button>
+          <span className="round-tag mono" title="当前标签的审查轮次（并发冲突以它为准）">轮 …{short(roundId)}</span>
+        </div>
+
+        {view === 'deps' && (
+          <>
+            <section className="hero">
+              <div>
+                <span className="tag">PROJECT · AURORA-WEB · r{doc.rev}</span>
+                <h2>{staleCount > 0 ? `${staleCount} 项旧裁决等待重新确认` : '审查链状态一致'}</h2>
+                <p>
+                  共 <b>{counts.total} 个依赖</b>；
+                  链头回执 <b>…{short(doc.headHash)}</b>；
+                  {live && <b className="warning"> 存在中断批次</b>}
+                  {!live && riskCount > 0 && <b className="warning"> {riskCount} 个高风险组件</b>}
+                </p>
+              </div>
+              <div className="scan-score">
+                <div className="score-ring"><strong>{counts.total ? Math.round(counts.ok / counts.total * 100) : 0}<small>%</small></strong></div>
+                <div><span>已放行占比</span><b>{counts.ok}/{counts.total}</b><small>含商业授权与豁免覆盖</small></div>
+              </div>
+            </section>
+            <section className="summary">
+              <div><span>全部依赖</span><b>{counts.total}</b><small>按包指纹去重</small></div>
+              <div><span className="teal-label">放行</span><b className="teal">{counts.ok}</b><small>裁决 / 授权 / 豁免</small></div>
+              <div><span>需复核</span><b className="orange">{counts.warn}</b><small>{staleCount} 项待重新确认</small></div>
+              <div><span>高风险</span><b className="red">{counts.risk}</b><small>未获覆盖</small></div>
+            </section>
+          </>
+        )}
+
+        {view === 'deps' && <DepsView ui={ui} />}
+        {view === 'evidence' && <EvidenceView ui={ui} />}
+        {view === 'baseline' && <BaselineView ui={ui} />}
+        {view === 'receipts' && <ReceiptsView ui={ui} />}
+        {view === 'disputes' && <DisputesView ui={ui} />}
+
+        {/* 本标签 / 本审计员的暂存批次条 */}
+        {drafts.length > 0 && (
+          <div className="draft-bar">
+            <div className="draft-info">
+              <b>{actor} 的暂存批次 · {drafts.length} 项材料</b>
+              <span>仅保存在本标签，提交后才生成回执；另一标签看不到也覆盖不了</span>
+            </div>
+            <div className="draft-items">
+              {drafts.slice(0, 4).map((c, i) => <i key={i} className="chip neutral">{changeText(c)}</i>)}
+              {drafts.length > 4 && <i className="chip neutral">+{drafts.length - 4}</i>}
+            </div>
+            <button className="primary sm" onClick={submitDrafts}><Send size={13} />保存批次（轮 …{short(roundId)}）</button>
+            <button className="link-btn" onClick={() => { store.clearDraft(actor); reloadDrafts(); }}><X size={13} />清空</button>
+          </div>
+        )}
+      </main>
+
+      <ToastStack toasts={toasts} dismiss={dismissToast} />
+    </div>
+  );
+}
