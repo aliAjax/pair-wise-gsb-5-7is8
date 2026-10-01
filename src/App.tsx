@@ -1,6 +1,223 @@
-import {useEffect,useMemo,useState} from 'react';
-import {AlertTriangle,Check,ChevronDown,Download,FileCode2,Info,Layers3,Plus,Search,ShieldCheck,Sparkles,Upload, X} from 'lucide-react';
-type Dep={id:number;name:string;version:string;license:string;source:string;status:'ok'|'warn'|'risk';note:string};
-const initial:Dep[]=[{id:1,name:'react',version:'18.3.1',license:'MIT',source:'npm',status:'ok',note:'宽松许可，可商用'}, {id:2,name:'lodash',version:'4.17.21',license:'MIT',source:'npm',status:'ok',note:'宽松许可，可商用'}, {id:3,name:'chart.js',version:'4.4.4',license:'MIT',source:'npm',status:'ok',note:'宽松许可，可商用'}, {id:4,name:'highlight.js',version:'11.10.0',license:'BSD-3-Clause',source:'npm',status:'warn',note:'再发布需保留版权声明'}, {id:5,name:'legacy-parser',version:'2.1.0',license:'GPL-3.0',source:'手动',status:'risk',note:'可能与闭源分发冲突'}];
-const colors:Record<string,string>={MIT:'#35b995','BSD-3-Clause':'#6d9ee8','GPL-3.0':'#ec8c75','Apache-2.0':'#b18ee4'};
-export default function App(){const [deps,setDeps]=useState<Dep[]>(()=>{try{return JSON.parse(localStorage.getItem('license-lens')||'')||initial}catch{return initial}});const [query,setQuery]=useState('');const [filter,setFilter]=useState('全部');const [selected,setSelected]=useState(1);const [showAdd,setShowAdd]=useState(false);const [name,setName]=useState('');const [license,setLicense]=useState('MIT');const current=deps.find(d=>d.id===selected);useEffect(()=>localStorage.setItem('license-lens',JSON.stringify(deps)),[deps]);const filtered=useMemo(()=>deps.filter(d=>(filter==='全部'||d.status===filter)&&`${d.name}${d.license}`.toLowerCase().includes(query.toLowerCase())),[deps,filter,query]);const add=()=>{if(!name.trim())return;const id=Date.now();setDeps(ds=>[...ds,{id,name:name.trim(),version:'1.0.0',license,source:'手动',status:license.startsWith('GPL')?'risk':license==='MIT'?'ok':'warn',note:license==='MIT'?'宽松许可，可商用':'请核对分发义务'}]);setSelected(id);setName('');setShowAdd(false)};const exportMd=()=>{const text=`# License Lens\n\n| 依赖 | 版本 | 许可证 | 状态 |\n|---|---|---|---|\n${deps.map(d=>`| ${d.name} | ${d.version} | ${d.license} | ${d.status} |`).join('\n')}`;const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:'text/markdown'}));a.download='license-report.md';a.click();URL.revokeObjectURL(a.href)};return <div className="shell"><aside><div className="brand"><div className="brand-icon"><ShieldCheck size={18}/></div><div><b>License Lens</b><small>dependency clarity</small></div></div><div className="nav-title">WORKSPACE</div><button className="nav active"><Layers3 size={16}/>依赖总览</button><button className="nav"><FileCode2 size={16}/>许可证清单 <span>{deps.length}</span></button><button className="nav"><AlertTriangle size={16}/>待处理风险 <span className="red">{deps.filter(d=>d.status==='risk').length}</span></button><div className="aside-bottom"><div className="mini-card"><Sparkles size={16}/><div><b>扫描已更新</b><small>刚刚完成 5 个依赖的分析</small></div></div><div className="user"><div className="avatar">ZL</div><span>Zen Li</span><ChevronDown size={14}/></div></div></aside><main><header><div><div className="crumb">WORKSPACE / <b>PROJECT SCAN</b></div><h1>许可证兼容性分析</h1><p>检查依赖许可，放心发布你的项目。</p></div><div className="head-actions"><button className="outline" onClick={exportMd}><Download size={15}/>导出报告</button><button className="primary" onClick={()=>setShowAdd(true)}><Plus size={16}/>添加依赖</button></div></header><section className="hero"><div><span className="tag">PROJECT · AURORA-WEB</span><h2>发布前，再确认一次。</h2><p>我们扫描了 <b>{deps.length} 个依赖</b>，发现 <b className="warning">{deps.filter(d=>d.status!=='ok').length} 个项目</b>需要你的关注。</p></div><div className="scan-score"><div className="score-ring"><strong>{Math.round(deps.filter(d=>d.status==='ok').length/deps.length*100)}<small>%</small></strong></div><div><span>兼容评分</span><b>良好</b><small>上次扫描 2 分钟前</small></div></div></section><section className="summary"><div><span>全部依赖</span><b>{deps.length}</b><small>+2 本次新增</small></div><div><span>安全许可</span><b className="teal">{deps.filter(d=>d.status==='ok').length}</b><small>可直接分发</small></div><div><span>需要复核</span><b className="orange">{deps.filter(d=>d.status==='warn').length}</b><small>保留声明即可</small></div><div><span>高风险</span><b className="red">{deps.filter(d=>d.status==='risk').length}</b><small>建议替换或隔离</small></div></section><section className="workspace"><div className="table-pane"><div className="pane-head"><div><h2>依赖清单</h2><p>逐项查看许可证义务</p></div><div className="tools"><div className="search"><Search size={15}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="搜索依赖"/></div><select value={filter} onChange={e=>setFilter(e.target.value)}><option value="全部">全部状态</option><option value="ok">安全</option><option value="warn">复核</option><option value="risk">高风险</option></select></div></div><div className="table"><div className="tr th"><span>依赖名称</span><span>版本</span><span>许可证</span><span>状态</span></div>{filtered.map(d=><button className={d.id===selected?'tr selected':'tr'} key={d.id} onClick={()=>setSelected(d.id)}><span className="dep-name"><span className="pkg-dot"/> {d.name}</span><span className="muted">{d.version}</span><span><i className="license" style={{color:colors[d.license]||'#888',background:(colors[d.license]||'#888')+'18'}}>{d.license}</i></span><span className={'status '+d.status}>{d.status==='ok'?<Check size={13}/>:<AlertTriangle size={13}/>} {d.status==='ok'?'安全':d.status==='warn'?'复核':'高风险'}</span></button>)}</div></div>{current&&<div className="detail"><div className="detail-head"><div className="detail-icon" style={{background:(colors[current.license]||'#888')+'1c',color:colors[current.license]}}><FileCode2 size={20}/></div><div><span>SELECTED DEPENDENCY</span><h2>{current.name}</h2></div><button className="close" onClick={()=>setSelected(0)}><X size={16}/></button></div><div className="detail-grid"><div><label>版本</label><b>{current.version}</b></div><div><label>来源</label><b>{current.source}</b></div><div><label>许可证</label><b>{current.license}</b></div></div><div className={'finding '+current.status}><div className="finding-icon">{current.status==='ok'?<Check size={16}/>:<AlertTriangle size={16}/>}</div><div><b>{current.status==='ok'?'可以放心使用':current.status==='warn'?'需要保留声明':'存在分发限制'}</b><p>{current.note}。扫描结果基于 package 元数据，请在发布前查看完整许可证文本。</p></div></div><div className="full-license"><div><Info size={15}/><span>许可证摘要</span></div><p>{current.license} 允许在满足其条款的前提下使用和分发代码。详细义务请参考项目仓库中的 LICENSE 文件。</p><button>查看原文 <ChevronDown size={14}/></button></div></div>}</section></main>{showAdd&&<div className="backdrop" onClick={()=>setShowAdd(false)}><div className="modal" onClick={e=>e.stopPropagation()}><div className="modal-head"><h2>添加依赖</h2><button onClick={()=>setShowAdd(false)}>×</button></div><label>依赖名称<input autoFocus value={name} onChange={e=>setName(e.target.value)} placeholder="例如 date-fns"/></label><label>许可证<select value={license} onChange={e=>setLicense(e.target.value)}><option>MIT</option><option>BSD-3-Clause</option><option>Apache-2.0</option><option>GPL-3.0</option></select></label><button className="primary full" onClick={add}>加入扫描</button></div></div>}</div>}
+import { useEffect, useMemo, useState } from 'react';
+import {
+  AlertTriangle,
+  ChevronDown,
+  Download,
+  FileCode2,
+  Layers3,
+  RefreshCw,
+  Scale,
+  ScrollText,
+  ShieldCheck,
+  Sparkles,
+} from 'lucide-react';
+import { getEngine, useEngineState, AUDITORS } from './state/store';
+import { buildViews, openDisputes, pendingItems } from './core/selectors';
+import { ComponentList } from './ui/ComponentList';
+import { ComponentDetail } from './ui/ComponentDetail';
+import { ImportPanel } from './ui/ImportPanel';
+import { DisputesPanel } from './ui/DisputesPanel';
+import { BaselinePanel } from './ui/BaselinePanel';
+import { RecoveryCenter } from './ui/RecoveryCenter';
+import { exportReport } from './ui/report';
+import { Toast } from './ui/Badge';
+
+type Tab = 'review' | 'baseline' | 'recovery';
+
+export default function App() {
+  const engine = useMemo(getEngine, []);
+  const state = useEngineState(engine);
+  const [auditorId, setAuditorId] = useState(AUDITORS[0].id);
+  const [tab, setTab] = useState<Tab>('review');
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ msg: string; tone: 'ok' | 'error' | 'info' } | null>(null);
+  const [bootInfo, setBootInfo] = useState<{ migrated: number; resumed: number }>({ migrated: 0, resumed: 0 });
+
+  useEffect(() => {
+    const info = engine.bootstrap();
+    setBootInfo(info);
+    const messages: string[] = [];
+    if (info.migrated > 0) messages.push(`已从旧版升级 ${info.migrated} 个组件：指纹与策略基线已回填，旧裁决等待重新确认`);
+    if (info.resumed > 0) messages.push(`检测到 ${info.resumed} 个未完成批次，可在恢复中心继续`);
+    if (messages.length > 0) setToast({ msg: messages.join('；'), tone: 'info' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const auditor = AUDITORS.find((a) => a.id === auditorId) ?? AUDITORS[0];
+  const notify = (msg: string, tone: 'ok' | 'error' | 'info' = 'info') => {
+    setToast({ msg, tone });
+  };
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 4200);
+    return () => clearTimeout(t);
+  }, [toast]);
+
+  const views = buildViews(state);
+  const pending = pendingItems(state);
+  const pendingIds = useMemo(() => new Set(pending.map((p) => p.item.componentId).filter(Boolean) as string[]), [state]);
+  const disputes = openDisputes(state);
+  const attention = views.filter((v) => v.validity !== 'fresh').length;
+
+  const headerStats = {
+    total: views.length,
+    fresh: views.filter((v) => v.validity === 'fresh').length,
+    attention,
+    rejected: views.filter((v) => v.suggestion.decision === 'rejected' && v.covers.length === 0).length,
+    covered: views.filter((v) => v.covers.length > 0).length,
+  };
+
+  return (
+    <div className="shell">
+      <aside>
+        <div className="brand">
+          <div className="brand-icon"><ShieldCheck size={18} /></div>
+          <div><b>License Lens</b><small>recoverable review chain</small></div>
+        </div>
+        <div className="nav-title">尽调工作台</div>
+        <button className={`nav ${tab === 'review' ? 'active' : ''}`} onClick={() => setTab('review')}>
+          <Layers3 size={16} />审查链总览
+        </button>
+        <button className={`nav ${tab === 'baseline' ? 'active' : ''}`} onClick={() => setTab('baseline')}>
+          <Scale size={16} />策略基线 <span className="nav-spacer" /> <em className="nav-meta">v{state.baseline.version}</em>
+        </button>
+        <button className={`nav ${tab === 'recovery' ? 'active' : ''}`} onClick={() => setTab('recovery')}>
+          <ScrollText size={16} />批次与恢复
+          {pending.length > 0 && <span className="red">{pending.length}</span>}
+        </button>
+        <button className="nav" onClick={() => document.getElementById('disputes-anchor')?.scrollIntoView({ behavior: 'smooth' })}>
+          <AlertTriangle size={16} />争议清单
+          {disputes.length > 0 && <span className="red">{disputes.length}</span>}
+        </button>
+
+        <div className="aside-bottom">
+          <div className="mini-card">
+            <RefreshCw size={15} className="spin-slow" />
+            <div>
+              <b>可恢复审查链</b>
+              <small>指纹·证据·基线·回执串联</small>
+            </div>
+          </div>
+          <div className="auditor-switch">
+            <label className="switch-label">当前审计身份</label>
+            <div className="switcher">
+              {AUDITORS.map((a) => (
+                <button
+                  key={a.id}
+                  className={a.id === auditorId ? 'active' : ''}
+                  onClick={() => setAuditorId(a.id)}
+                  title="模拟在另一个标签中切换审计员；真实协作时请用两个浏览器标签同时打开本页"
+                >
+                  <span className="avatar sm">{a.initials}</span>{a.name.replace(/（.*?）/, '')}
+                </button>
+              ))}
+            </div>
+            <small className="muted">提示：两个浏览器标签打开本页即模拟甲乙同时操作</small>
+          </div>
+          <div className="user">
+            <div className="avatar">{auditor.initials}</div>
+            <span>{auditor.name}</span>
+            <ChevronDown size={14} />
+          </div>
+        </div>
+      </aside>
+
+      <main>
+        <header>
+          <div>
+            <div className="crumb">AURORA ACQUISITION / <b>DEPENDENCY DUE DILIGENCE</b></div>
+            <h1>许可证可恢复审查链</h1>
+            <p>依赖指纹、许可证据、策略基线、批次回执串联落盘 —— 中断可续，并发可裁。</p>
+          </div>
+          <div className="head-actions">
+            <button className="outline" onClick={() => exportReport(state)}><Download size={15} />导出审查报告</button>
+          </div>
+        </header>
+
+        <section className="hero">
+          <div>
+            <span className="tag">PROJECT · AURORA-WEB · BASELINE v{state.baseline.version}</span>
+            <h2>后保存不再抹掉证据，半截扫描不再丢失。</h2>
+            <p>
+              链上 <b>{headerStats.total} 个组件</b>，<b className="teal">{headerStats.fresh} 条裁决有效</b>，
+              <b className="warning"> {headerStats.attention} 项待重新确认</b>，
+              <b className="purple-text"> {headerStats.covered} 个有授权/豁免覆盖</b>
+              {pending.length > 0 && <>，<b className="red">{pending.length} 个批次项未完成</b></>}
+            </p>
+          </div>
+          <div className="hero-chain">
+            <div className="chain-node"><Layers3 size={15} /><b>指纹</b><small>name@version+license</small></div>
+            <span className="chain-link" />
+            <div className="chain-node"><FileCode2 size={15} /><b>证据</b><small>授权/豁免按组件覆盖</small></div>
+            <span className="chain-link" />
+            <div className="chain-node"><Scale size={15} /><b>基线 v{state.baseline.version}</b><small>版本化裁决口径</small></div>
+            <span className="chain-link" />
+            <div className="chain-node"><ScrollText size={15} /><b>回执</b><small>完整批次可恢复</small></div>
+          </div>
+        </section>
+
+        {bootInfo.migrated > 0 && (
+          <div className="banner info">
+            <Sparkles size={15} />
+            旧版数据已升级：组件指纹与当前基线版本已回填，全部历史裁决标记为「待重新确认」。
+          </div>
+        )}
+        {pending.length > 0 && (
+          <div className="banner warn">
+            <AlertTriangle size={15} />
+            有 {pending.length} 个批次项未完成（中断或落盘失败）。
+            <button className="link-btn" onClick={() => setTab('recovery')}>前往恢复中心 →</button>
+          </div>
+        )}
+        {disputes.length > 0 && (
+          <div className="banner danger">
+            <AlertTriangle size={15} />
+            {disputes.length} 条并发保存争议待处理：先到者材料保留，后到者材料在争议清单中。
+            <button className="link-btn" onClick={() => document.getElementById('disputes-anchor')?.scrollIntoView({ behavior: 'smooth' })}>查看 →</button>
+          </div>
+        )}
+
+        {tab === 'review' && (
+          <>
+            <ImportPanel engine={engine} auditor={auditor} notify={notify} />
+            <section className="summary">
+              <div><span>组件总数</span><b>{headerStats.total}</b><small>锁文件逐项入链</small></div>
+              <div><span>裁决有效</span><b className="teal">{headerStats.fresh}</b><small>指纹+基线均匹配</small></div>
+              <div><span>待重新确认</span><b className="orange">{headerStats.attention}</b><small>指纹/基线/迁移失效</small></div>
+              <div><span>授权覆盖</span><b className="purple">{headerStats.covered}</b><small>商业授权或豁免</small></div>
+              <div><span>仍被基线拒绝</span><b className="red">{headerStats.rejected}</b><small>且无覆盖材料</small></div>
+            </section>
+            <section className="workspace">
+              <ComponentList
+                state={state}
+                engine={engine}
+                auditor={auditor}
+                selectedId={selectedId}
+                onSelect={setSelectedId}
+                pendingIds={pendingIds}
+              />
+              {selectedId && (
+                <ComponentDetail
+                  state={state}
+                  engine={engine}
+                  auditor={auditor}
+                  componentId={selectedId}
+                  onClose={() => setSelectedId(null)}
+                  notify={notify}
+                />
+              )}
+            </section>
+            <div id="disputes-anchor" className="anchor-offset" />
+            <DisputesPanel state={state} engine={engine} auditor={auditor} notify={notify} />
+          </>
+        )}
+
+        {tab === 'baseline' && (
+          <BaselinePanel state={state} engine={engine} auditor={auditor} notify={notify} />
+        )}
+        {tab === 'recovery' && <RecoveryCenter state={state} engine={engine} auditor={auditor} notify={notify} />}
+      </main>
+      <Toast message={toast?.msg ?? null} tone={toast?.tone ?? 'info'} onClose={() => setToast(null)} />
+    </div>
+  );
+}
